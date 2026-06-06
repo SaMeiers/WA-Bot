@@ -5,7 +5,7 @@ const {
     DisconnectReason,
     fetchLatestBaileysVersion,
     Browsers
-} = require('@itsliaaa/baileys')
+} = require('@sameiers/baileys')
 const pino = require('pino')
 const fs = require('fs')
 const path = require('path')
