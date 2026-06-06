@@ -1,7 +1,6 @@
 const { exec } = require('child_process')
 const { promisify } = require('util')
 const path = require('path')
-const fs = require('fs')
 const execAsync = promisify(exec)
 
 const ROOT = path.join(__dirname, '..')
@@ -26,15 +25,17 @@ module.exports = {
         try {
             await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
-            const { stdout: headBefore } = await execAsync('git rev-parse HEAD', { cwd: ROOT })
-            const prevHead = headBefore.trim()
-
             const { stdout: branchOut } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: ROOT })
             const branch = branchOut.trim()
 
-            const { stdout: pullOut } = await execAsync(`git pull origin ${branch}`, { cwd: ROOT })
+            await execAsync(`git fetch origin ${branch}`, { cwd: ROOT })
 
-            if (pullOut.includes('Already up to date')) {
+            const { stdout: logOut } = await execAsync(
+                `git log HEAD..origin/${branch} --pretty=format:"%h|%s|%an|%cr"`,
+                { cwd: ROOT }
+            )
+
+            if (!logOut.trim()) {
                 await sock.sendMessage(from, {
                     text: '✅ *El bot ya está actualizado*\nNo hay cambios nuevos en el repositorio.'
                 }, { quoted: msg })
@@ -42,37 +43,28 @@ module.exports = {
                 return
             }
 
-            const { stdout: logOut } = await execAsync(
-                `git log ${prevHead}..HEAD --pretty=format:"%h|%s|%an|%cr"`,
-                { cwd: ROOT }
-            )
             const commits = logOut.trim().split('\n').filter(Boolean).map(line => {
                 const [hash, subject, author, when] = line.split('|')
                 return { hash, subject, author, when }
             })
 
             const { stdout: diffOut } = await execAsync(
-                `git diff --name-status ${prevHead} HEAD`,
+                `git diff --name-status HEAD origin/${branch}`,
                 { cwd: ROOT }
             )
             const changedFiles = diffOut.trim().split('\n').filter(Boolean).map(line => {
                 const parts = line.split('\t')
-                const rawStatus = parts[0][0]     
+                const rawStatus = parts[0][0]
                 const fileName = parts[parts.length - 1]
                 const label = FILE_STATUS[rawStatus] || `❓ ${rawStatus}`
-                return { label, fileName }
+                return { label, fileName, rawStatus }
             })
-            
+
             const { stdout: statOut } = await execAsync(
-                `git diff --shortstat ${prevHead} HEAD`,
+                `git diff --shortstat HEAD origin/${branch}`,
                 { cwd: ROOT }
             )
             const stats = statOut.trim()
-            
-            const pkgChanged = changedFiles.some(f => f.fileName.includes('package.json'))
-            if (pkgChanged) {
-                await execAsync('npm install', { cwd: ROOT })
-            }
 
             const commitLines = commits
                 .map(c => `  • *[${c.hash}]* ${c.subject}\n    _${c.author} · ${c.when}_`)
@@ -82,22 +74,26 @@ module.exports = {
                 .map(f => `  ${f.label}: \`${f.fileName}\``)
                 .join('\n')
 
+            const pkgWillChange = changedFiles.some(f => f.fileName.includes('package.json'))
+
             let text = `🚀 *Bot actualizado exitosamente!*\n`
             text += `📌 Rama: \`${branch}\`\n`
             text += `📊 ${stats}\n`
-            text += `\n📋 *Commits nuevos (${commits.length}):*\n${commitLines}\n`
+            text += `\n📋 *Commits (${commits.length}):*\n${commitLines}\n`
             text += `\n📁 *Archivos afectados (${changedFiles.length}):*\n${fileLines}`
-
-            if (pkgChanged) {
-                text += `\n\n📦 _Se detectaron cambios en package.json — npm install ejecutado._`
+            if (pkgWillChange) {
+                text += `\n\n📦 _package.json cambia — se ejecutará npm install._`
             }
-
-            text += `\n\n♻️ _Reiniciando bot en 3 segundos..._`
+            text += `\n\n♻️ _Reiniciando..._`
 
             await sock.sendMessage(from, { text }, { quoted: msg })
             await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
-            setTimeout(() => process.exit(0), 3000)
+            await execAsync(`git merge origin/${branch}`, { cwd: ROOT })
+
+            if (pkgWillChange) {
+                await execAsync('npm install', { cwd: ROOT })
+            }
 
         } catch (err) {
             console.error('❌ Error en /update:', err.message)
