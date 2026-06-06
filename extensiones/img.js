@@ -101,11 +101,17 @@ module.exports = {
         } else if (quoted.viewOnceMessage?.message?.imageMessage || quoted.viewOnceMessageV2?.message?.imageMessage || quoted.viewOnceMessageV2Extension?.message?.imageMessage) {
             mediaMsg = quoted.viewOnceMessage?.message?.imageMessage || quoted.viewOnceMessageV2?.message?.imageMessage || quoted.viewOnceMessageV2Extension?.message?.imageMessage
             mediaType = 'image'
+        } else if (quoted.viewOnceMessage?.message?.videoMessage || quoted.viewOnceMessageV2?.message?.videoMessage || quoted.viewOnceMessageV2Extension?.message?.videoMessage) {
+            mediaMsg = quoted.viewOnceMessage?.message?.videoMessage || quoted.viewOnceMessageV2?.message?.videoMessage || quoted.viewOnceMessageV2Extension?.message?.videoMessage
+            mediaType = 'video'
         } else if (quoted.imageMessage) {
             mediaMsg = quoted.imageMessage
             mediaType = 'image'
+        } else if (quoted.videoMessage) {
+            mediaMsg = quoted.videoMessage
+            mediaType = 'video'
         } else {
-            return await sock.sendMessage(from, { text: '❌ Solo respondiendo a *stickers* o *imágenes de un solo uso*.' }, { quoted: msg })
+            return await sock.sendMessage(from, { text: '❌ Solo respondiendo a *stickers*, *imágenes* o *videos de un solo uso*.' }, { quoted: msg })
         }
 
         try {
@@ -128,6 +134,9 @@ module.exports = {
                 const result = await stickerToMedia(buffer, targetFormat)
                 finalBuffer = result.buffer
                 sendType = result.type
+            } else if (mediaType === 'video') {
+                finalBuffer = buffer
+                sendType = 'video'
             } else {
                 finalBuffer = buffer
                 sendType = 'image'
@@ -157,6 +166,8 @@ module.exports = {
 
             const caption = mediaType === 'sticker'
                 ? `🖼️ *Sticker convertido a ${targetFormat.toUpperCase()}*`
+                : mediaType === 'video'
+                ? `🎥 *Video recuperado en MP4*`
                 : `📸 *Imagen recuperada a ${targetFormat.toUpperCase()}*`
 
             if (sendType === 'video') {
