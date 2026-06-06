@@ -8,7 +8,7 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "@itsliaaa/baileys": "github:itsliaaa/baileys",
+    "@sameiers/baileys": "github:sameiers/baileys",
     "pino": "^9.0.0"
   },
   "devDependencies": {
