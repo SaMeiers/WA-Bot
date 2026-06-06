@@ -15,11 +15,9 @@ async function mediaToSticker(buffer, isVideo) {
     fs.writeFileSync(input, buffer)
     try {
         if (isVideo) {
-            
-            await execAsync(`ffmpeg -y -i "${input}" -vcodec libwebp -vf "scale=512:512:force_original_aspect_ratio=increase,crop=512:512,fps=12" -lossless 0 -q:v 40 -loop 0 -preset default -an -t 8 "${output}"`)
+            await execAsync(`ffmpeg -y -i "${input}" -vcodec libwebp -vf "fps=12,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black" -lossless 0 -q:v 40 -loop 0 -preset default -an -t 8 "${output}"`)
         } else {
-            
-            await execAsync(`ffmpeg -y -i "${input}" -vcodec libwebp -vf "scale=512:512:force_original_aspect_ratio=increase,crop=512:512" -lossless 1 -q:v 80 -loop 0 -preset default -an "${output}"`)
+            await execAsync(`ffmpeg -y -i "${input}" -vcodec libwebp -vf "scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -lossless 1 -q:v 80 -loop 0 -preset default -an "${output}"`)
         }
         return fs.readFileSync(output)
     } finally {
