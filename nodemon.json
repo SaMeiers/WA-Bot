@@ -1,0 +1,5 @@
+{
+  "watch": ["index.js", "extensiones/"]
+  "ext": "js"
+  "ignore": ["auth_info/", "whitelist.json"]
+} 
