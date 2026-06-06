@@ -100,7 +100,7 @@ module.exports = {
             await sock.sendMessage(from, { text }, { quoted: msg })
             await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
-            await execAsync(`git merge origin/${branch}`, { cwd: ROOT })
+            await execAsync(`git reset --hard origin/${branch}`, { cwd: ROOT })
 
             if (pkgWillChange) {
                 await execAsync('npm install', { cwd: ROOT })
