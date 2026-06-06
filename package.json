@@ -1,0 +1,17 @@
+{
+  "name": "wa-bot-personal",
+  "version": "1.0.0",
+  "description": "Bot personal de WhatsApp — Sistema modular, stickers, view-once y RichMessages",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon --ignore auth_info/ --ignore extensiones/ index.js"
+  },
+  "dependencies": {
+    "@itsliaaa/baileys": "github:itsliaaa/baileys",
+    "pino": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
