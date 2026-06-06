@@ -1,9 +1,11 @@
 const { exec } = require('child_process')
 const { promisify } = require('util')
 const path = require('path')
+const fs = require('fs')
 const execAsync = promisify(exec)
 
 const ROOT = path.join(__dirname, '..')
+const GIT_DIR = path.join(ROOT, '.git')
 
 const FILE_STATUS = {
     M: '📝 Modificado',
@@ -11,6 +13,13 @@ const FILE_STATUS = {
     D: '🗑️ Eliminado',
     R: '🔄 Renombrado',
     C: '📋 Copiado',
+}
+
+function clearGitLocks() {
+    try {
+        const { execSync } = require('child_process')
+        execSync(`find "${GIT_DIR}" -name "*.lock" -delete`)
+    } catch (_) {}
 }
 
 module.exports = {
@@ -24,6 +33,8 @@ module.exports = {
 
         try {
             await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+
+            clearGitLocks()
 
             const { stdout: branchOut } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: ROOT })
             const branch = branchOut.trim()
