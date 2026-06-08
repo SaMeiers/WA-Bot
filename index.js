@@ -18,6 +18,17 @@ function pregunta(texto) {
     return new Promise(res => rl.question(texto, ans => { rl.close(); res(ans.trim()) }))
 }
 
+function isAllModeActive() {
+    const modePath = path.join(__dirname, 'mode.json')
+    if (fs.existsSync(modePath)) {
+        try {
+            const mode = JSON.parse(fs.readFileSync(modePath, 'utf8'))
+            return mode.allMode === true
+        } catch (e) {}
+    }
+    return false
+}
+
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('./auth_info')
     const { version } = await fetchLatestBaileysVersion()
@@ -89,8 +100,9 @@ async function startBot() {
 
                 const isCreator = fromMe
                 const isWhitelisted = whitelist.includes(sender)
+                const allModeActive = isAllModeActive()
 
-                if (!isCreator && !isWhitelisted) {
+                if (!isCreator && !allModeActive && !isWhitelisted) {
                     continue
                 }
 
