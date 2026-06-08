@@ -1,0 +1,49 @@
+const fs = require('fs')
+const path = require('path')
+
+module.exports = {
+    nombre: 'help',
+    descripcion: 'Muestra la lista de todos los comandos disponibles con su uso',
+
+    ejecutar: async (ctx) => {
+        const { sock, msg, from } = ctx
+
+        const extensionesDir = path.join(__dirname)
+
+        const archivos = fs.readdirSync(extensionesDir).filter(f => f.endsWith('.js') && f !== 'help.js')
+
+        const comandos = []
+
+        for (const archivo of archivos) {
+            try {
+                const cmdPath = path.join(extensionesDir, archivo)
+                delete require.cache[require.resolve(cmdPath)]
+                const cmd = require(cmdPath)
+                if (cmd.nombre && cmd.descripcion) {
+                    comandos.push({
+                        nombre: cmd.nombre,
+                        descripcion: cmd.descripcion
+                    })
+                }
+            } catch (err) {
+                console.error(`Error cargando ${archivo}:`, err.message)
+            }
+        }
+
+        comandos.sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+        if (comandos.length === 0) {
+            return await sock.sendMessage(from, { text: '⚠️ No se encontraron comandos disponibles.' }, { quoted: msg })
+        }
+
+        let texto = '📋 *Lista de comandos disponibles*\n\n'
+        for (const cmd of comandos) {
+            texto += `🔹 */${cmd.nombre}*\n   _${cmd.descripcion}_\n\n`
+        }
+
+        texto += '*Uso:* Responde a stickers, imágenes o videos con /s, /img, etc.\n'
+        texto += '*Nota:* Solo usuarios autorizados pueden usar comandos.'
+
+        await sock.sendMessage(from, { text: texto }, { quoted: msg })
+    }
+} 
