@@ -79,7 +79,7 @@ module.exports = {
     descripcion: 'Mortal minijuego de Ruleta Rusa. Uso: /ruleta [crear|join|leave|start|kick|dispararme|disparar|jugadores|rank]',
 
     ejecutar: async (ctx) => {
-        const { sock, msg, from, args, sender } = ctx
+        const { sock, msg, from, args, sender, groupCache } = ctx
 
         if (!from.endsWith('@g.us')) {
             return await sock.sendMessage(from, { text: '❌ Este juego enfermo solo se puede jugar en grupos.' }, { quoted: msg })
@@ -132,8 +132,8 @@ module.exports = {
                 }
             }, 5 * 60 * 1000)
 
-            const groupMetadata = await sock.groupMetadata(from)
-            const todosLosMiembros = groupMetadata.participants.map(p => p.id)
+            const cachedMeta = groupCache?.get(from) || await sock.groupMetadata(from)
+            const todosLosMiembros = cachedMeta.participants.map(p => p.id)
 
             const texto = `⚠️ *¡ATENCIÓN, ESCORIA DEL GRUPO!* ⚠️\nUn enfermo llamado *${pushName}* acaba de poner un revólver en la mesa.\n\nTienen *5 minutos* para usar */ruleta join* si tienen los huevos suficientes.\n\n👥 *Jugadores en la sala:*\n#1 ${pushName} *(El psicópata que organizó esto)*\n\n_Mínimo 2 jugadores para iniciar. Máximo 6._`
 
