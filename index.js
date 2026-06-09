@@ -13,20 +13,11 @@ const readline = require('readline')
 
 const logger = pino({ level: 'silent' })
 
+const groupCache = new Map()
+
 function pregunta(texto) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
     return new Promise(res => rl.question(texto, ans => { rl.close(); res(ans.trim()) }))
-}
-
-function isAllModeActive() {
-    const modePath = path.join(__dirname, 'mode.json')
-    if (fs.existsSync(modePath)) {
-        try {
-            const mode = JSON.parse(fs.readFileSync(modePath, 'utf8'))
-            return mode.allMode === true
-        } catch (e) {}
-    }
-    return false
 }
 
 async function startBot() {
@@ -39,9 +30,45 @@ async function startBot() {
         logger,
         markOnlineOnConnect: false,
         browser: Browsers.ubuntu('Chrome'),
+        
+        cachedGroupMetadata: async (jid) => groupCache.get(jid)
     })
 
     sock.ev.on('creds.update', saveCreds)
+
+    sock.ev.on('groups.update', async (updates) => {
+        for (const update of updates) {
+            if (groupCache.has(update.id)) {
+                const cached = groupCache.get(update.id)
+                groupCache.set(update.id, { ...cached, ...update })
+            }
+        }
+    })
+
+    sock.ev.on('group-participants.update', async ({ id, participants, action }) => {
+        if (!groupCache.has(id)) return
+        const meta = groupCache.get(id)
+
+        if (action === 'add') {
+            for (const p of participants) {
+                if (!meta.participants.find(x => x.id === p)) {
+                    meta.participants.push({ id: p, isAdmin: false, isSuperAdmin: false })
+                }
+            }
+        } else if (action === 'remove') {
+            meta.participants = meta.participants.filter(x => !participants.includes(x.id))
+        } else if (action === 'promote') {
+            meta.participants = meta.participants.map(x =>
+                participants.includes(x.id) ? { ...x, admin: 'admin' } : x
+            )
+        } else if (action === 'demote') {
+            meta.participants = meta.participants.map(x =>
+                participants.includes(x.id) ? { ...x, admin: null } : x
+            )
+        }
+
+        groupCache.set(id, meta)
+    })
 
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
@@ -78,6 +105,13 @@ async function startBot() {
             const from = msg.key.remoteJid
             const fromMe = msg.key.fromMe
 
+            if (from.endsWith('@g.us') && !groupCache.has(from)) {
+                try {
+                    const meta = await sock.groupMetadata(from)
+                    groupCache.set(from, meta)
+                } catch (e) {}
+            }
+
             const rawText = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || '').trim()
             if (!rawText.startsWith('/')) continue
 
@@ -91,7 +125,7 @@ async function startBot() {
                 let whitelist = []
 
                 if (fs.existsSync(whitelistPath)) {
-                    try { whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8')) } catch (e) { }
+                    try { whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8')) } catch (e) {}
                 }
 
                 const sender = fromMe
@@ -100,16 +134,13 @@ async function startBot() {
 
                 const isCreator = fromMe
                 const isWhitelisted = whitelist.includes(sender)
-                const allModeActive = isAllModeActive()
 
-                if (!isCreator && !allModeActive && !isWhitelisted) {
-                    continue
-                }
+                if (!isCreator && !isWhitelisted) continue
 
                 try {
                     delete require.cache[require.resolve(cmdPath)]
                     const extension = require(cmdPath)
-                    await extension.ejecutar({ sock, msg, from, args, downloadMediaMessage, logger, sender, isCreator })
+                    await extension.ejecutar({ sock, msg, from, args, downloadMediaMessage, logger, sender, isCreator, groupCache })
                 } catch (err) {
                     console.error(`❌ Error al ejecutar extensión [${cmdName}]:`, err)
                     await sock.sendMessage(from, { text: `❌ Error en el comando: ${err.message}` })
