@@ -14,6 +14,21 @@ const readline = require('readline')
 const logger = pino({ level: 'silent' })
 
 const groupCache = new Map()
+const GROUP_CACHE_TTL = 5 * 60 * 1000
+
+function cacheSet(jid, metadata) {
+    groupCache.set(jid, { data: metadata, ts: Date.now() })
+}
+
+function cacheGet(jid) {
+    const entry = groupCache.get(jid)
+    if (!entry) return undefined
+    if (Date.now() - entry.ts > GROUP_CACHE_TTL) {
+        groupCache.delete(jid)
+        return undefined
+    }
+    return entry.data
+}
 
 function pregunta(texto) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -30,44 +45,23 @@ async function startBot() {
         logger,
         markOnlineOnConnect: false,
         browser: Browsers.ubuntu('Chrome'),
-        
-        cachedGroupMetadata: async (jid) => groupCache.get(jid)
+        cachedGroupMetadata: async (jid) => cacheGet(jid)
     })
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('groups.update', async (updates) => {
-        for (const update of updates) {
-            if (groupCache.has(update.id)) {
-                const cached = groupCache.get(update.id)
-                groupCache.set(update.id, { ...cached, ...update })
-            }
-        }
+    sock.ev.on('groups.update', async ([event]) => {
+        try {
+            const metadata = await sock.groupMetadata(event.id)
+            cacheSet(event.id, metadata)
+        } catch (e) {}
     })
 
-    sock.ev.on('group-participants.update', async ({ id, participants, action }) => {
-        if (!groupCache.has(id)) return
-        const meta = groupCache.get(id)
-
-        if (action === 'add') {
-            for (const p of participants) {
-                if (!meta.participants.find(x => x.id === p)) {
-                    meta.participants.push({ id: p, isAdmin: false, isSuperAdmin: false })
-                }
-            }
-        } else if (action === 'remove') {
-            meta.participants = meta.participants.filter(x => !participants.includes(x.id))
-        } else if (action === 'promote') {
-            meta.participants = meta.participants.map(x =>
-                participants.includes(x.id) ? { ...x, admin: 'admin' } : x
-            )
-        } else if (action === 'demote') {
-            meta.participants = meta.participants.map(x =>
-                participants.includes(x.id) ? { ...x, admin: null } : x
-            )
-        }
-
-        groupCache.set(id, meta)
+    sock.ev.on('group-participants.update', async (event) => {
+        try {
+            const metadata = await sock.groupMetadata(event.id)
+            cacheSet(event.id, metadata)
+        } catch (e) {}
     })
 
     if (!sock.authState.creds.registered) {
@@ -105,13 +99,6 @@ async function startBot() {
             const from = msg.key.remoteJid
             const fromMe = msg.key.fromMe
 
-            if (from.endsWith('@g.us') && !groupCache.has(from)) {
-                try {
-                    const meta = await sock.groupMetadata(from)
-                    groupCache.set(from, meta)
-                } catch (e) {}
-            }
-
             const rawText = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || '').trim()
             if (!rawText.startsWith('/')) continue
 
@@ -119,32 +106,34 @@ async function startBot() {
             const cmdName = args.shift().toLowerCase()
 
             const cmdPath = path.join(__dirname, 'extensiones', `${cmdName}.js`)
+            if (!fs.existsSync(cmdPath)) continue
 
-            if (fs.existsSync(cmdPath)) {
-                const whitelistPath = path.join(__dirname, 'whitelist.json')
-                let whitelist = []
+            const whitelistPath = path.join(__dirname, 'whitelist.json')
+            let whitelist = []
+            if (fs.existsSync(whitelistPath)) {
+                try { whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8')) } catch (e) {}
+            }
 
-                if (fs.existsSync(whitelistPath)) {
-                    try { whitelist = JSON.parse(fs.readFileSync(whitelistPath, 'utf8')) } catch (e) {}
-                }
+            const sender = fromMe
+                ? (sock.user.id.split(':')[0] + '@s.whatsapp.net')
+                : (msg.key.participant || msg.key.remoteJid)
 
-                const sender = fromMe
-                    ? (sock.user.id.split(':')[0] + '@s.whatsapp.net')
-                    : (msg.key.participant || msg.key.remoteJid)
+            const isCreator = fromMe
+            const isWhitelisted = whitelist.includes(sender)
 
-                const isCreator = fromMe
-                const isWhitelisted = whitelist.includes(sender)
+            if (!isCreator && !isWhitelisted) continue
 
-                if (!isCreator && !isWhitelisted) continue
+            if (from.endsWith('@g.us') && !cacheGet(from)) {
+                sock.groupMetadata(from).then(meta => cacheSet(from, meta)).catch(() => {})
+            }
 
-                try {
-                    delete require.cache[require.resolve(cmdPath)]
-                    const extension = require(cmdPath)
-                    await extension.ejecutar({ sock, msg, from, args, downloadMediaMessage, logger, sender, isCreator, groupCache })
-                } catch (err) {
-                    console.error(`❌ Error al ejecutar extensión [${cmdName}]:`, err)
-                    await sock.sendMessage(from, { text: `❌ Error en el comando: ${err.message}` })
-                }
+            try {
+                delete require.cache[require.resolve(cmdPath)]
+                const extension = require(cmdPath)
+                await extension.ejecutar({ sock, msg, from, args, downloadMediaMessage, logger, sender, isCreator, groupCache: { get: cacheGet, set: cacheSet } })
+            } catch (err) {
+                console.error(`❌ Error al ejecutar extensión [${cmdName}]:`, err)
+                await sock.sendMessage(from, { text: `❌ Error en el comando: ${err.message}` })
             }
         }
     })
