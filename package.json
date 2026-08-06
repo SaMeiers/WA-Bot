@@ -8,7 +8,8 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "@sameiers/baileys": "github:sameiers/baileys",
+    "@whiskeysockets/baileys": "^6.7.23",
+    "node-webpmux": "^3.0.0",
     "pino": "^9.0.0"
   },
   "devDependencies": {

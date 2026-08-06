@@ -5,13 +5,17 @@ const {
     DisconnectReason,
     fetchLatestBaileysVersion,
     Browsers
-} = require('@sameiers/baileys')
+} = require('@whiskeysockets/baileys')
 const pino = require('pino')
 const fs = require('fs')
 const path = require('path')
 const readline = require('readline')
+const { logInfo, logError } = require('./lib/logger')
 
-const logger = pino({ level: 'silent' })
+const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || 'error' })
+
+process.on('uncaughtException', (err) => logError('uncaughtException', err))
+process.on('unhandledRejection', (reason) => logError('unhandledRejection', reason))
 
 const groupCache = new Map()
 const GROUP_CACHE_TTL = 5 * 60 * 1000
@@ -72,20 +76,21 @@ async function startBot() {
                 const fmt = code?.match(/.{1,4}/g)?.join('-') || code
                 console.log(`\n Código de vinculación: ${fmt}`)
             } catch (error) {
-                console.error('\n Error al solicitar el código:', error.message)
+                logError('requestPairingCode', error)
             }
         }, 3000)
     }
 
     sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
-        if (connection === 'open') console.log(' Bot conectado y escuchando comandos!\n')
+        if (connection === 'open') logInfo('✅ Bot conectado y escuchando comandos!')
         if (connection === 'close') {
             const code = lastDisconnect?.error?.output?.statusCode
             const retry = code !== DisconnectReason.loggedOut
-            console.log(` Conexión cerrada (${code}). Reconectando...`)
+            if (lastDisconnect?.error) logError('connection.close', lastDisconnect.error)
+            logInfo(`🔌 Conexión cerrada (${code}). ${retry ? 'Reconectando...' : 'Sesión cerrada.'}`)
             if (retry) setTimeout(startBot, 3000)
             else {
-                console.log(' Sesión cerrada. Borra ./auth_info.')
+                logInfo('Sesión cerrada. Borra ./auth_info.')
                 process.exit(0)
             }
         }
@@ -130,13 +135,13 @@ async function startBot() {
             try {
                 delete require.cache[require.resolve(cmdPath)]
                 const extension = require(cmdPath)
-                await extension.ejecutar({ sock, msg, from, args, downloadMediaMessage, logger, sender, isCreator, groupCache: { get: cacheGet, set: cacheSet } })
+                await extension.ejecutar({ sock, msg, from, args, downloadMediaMessage, logger, logError, sender, isCreator, groupCache: { get: cacheGet, set: cacheSet } })
             } catch (err) {
-                console.error(`❌ Error al ejecutar extensión [${cmdName}]:`, err)
+                logError(`comando /${cmdName} (${sender})`, err)
                 await sock.sendMessage(from, { text: `❌ Error en el comando: ${err.message}` })
             }
         }
     })
 }
 
-startBot().catch(console.error)
+startBot().catch((err) => logError('startBot', err))

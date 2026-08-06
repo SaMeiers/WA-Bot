@@ -1,6 +1,6 @@
 {
-  "watch": ["index.js", "extensiones/"],
+  "watch": ["index.js", "extensiones/", "lib/"],
   "ext": "js",
   "delay": 2500,
-  "ignore": ["auth_info/", "whitelist.json"]
+  "ignore": ["auth_info/", "whitelist.json", "logs/"]
 }
