@@ -35,7 +35,7 @@ Todas tienen un valor por defecto razonable; solo hace falta definirlas si quer�
 | `STICKER_PACK` | `WA-Bot Personal` | Nombre de pack que se ve en los stickers |
 | `STICKER_AUTHOR` | `SaMeiers` | Autor que se ve en los stickers |
 | `STICKER_MAX_SECONDS` | `8` | Duración máxima de video aceptada para `/s` |
-| `STICKER_ANIMATED_MAX_BYTES` | `1000000` (1MB) | Límite de peso para stickers animados antes de reintentar con menor calidad |
+| `STICKER_ANIMATED_MAX_BYTES` | `9000000` (9MB) | Límite de peso para stickers animados antes de reintentar con menor calidad |
 | `STICKER_STATIC_MAX_BYTES` | `300000` (300KB) | Límite de peso para stickers estáticos |
 | `BAILEYS_LOG_LEVEL` | `error` | Nivel de log interno de Baileys (`debug` para ver todo el tráfico) |
 
