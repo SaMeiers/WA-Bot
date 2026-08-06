@@ -7,7 +7,7 @@ const execAsync = promisify(exec)
 const { addExif } = require('../lib/stickerExif')
 const { extFromMimetype } = require('../lib/mediaUtils')
 
-const ANIMATED_MAX_BYTES = parseInt(process.env.STICKER_ANIMATED_MAX_BYTES || '1000000', 10)
+const ANIMATED_MAX_BYTES = parseInt(process.env.STICKER_ANIMATED_MAX_BYTES || '9000000', 10)
 const STATIC_MAX_BYTES = parseInt(process.env.STICKER_STATIC_MAX_BYTES || '300000', 10)
 const MAX_VIDEO_SECONDS = parseInt(process.env.STICKER_MAX_SECONDS || '8', 10)
 
