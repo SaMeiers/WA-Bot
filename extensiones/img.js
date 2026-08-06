@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const execAsync = promisify(exec)
+const { extFromMimetype } = require('../lib/mediaUtils')
 
 async function stickerToMedia(buffer, targetFormat) {
     const tmp = os.tmpdir()
@@ -73,7 +74,7 @@ module.exports = {
     descripcion: 'Convierte sticker o imagen view-once a formato específico. Uso: /img [png|jpg|mp4|gif|webp]',
 
     ejecutar: async (ctx) => {
-        const { sock, msg, from, args, downloadMediaMessage, logger } = ctx
+        const { sock, msg, from, args, downloadMediaMessage, logger, logError } = ctx
 
         let targetFormat = 'png'
         if (args.length > 0) {
@@ -140,10 +141,11 @@ module.exports = {
             } else {
                 finalBuffer = buffer
                 sendType = 'image'
+                const inputExt = extFromMimetype(mediaMsg.mimetype)
                 if (targetFormat === 'mp4') {
                     const tmp = os.tmpdir()
                     const id = Date.now()
-                    const input = path.join(tmp, `img_${id}.jpg`)
+                    const input = path.join(tmp, `img_${id}.${inputExt}`)
                     const output = path.join(tmp, `img_${id}.mp4`)
                     fs.writeFileSync(input, buffer)
                     await execAsync(`ffmpeg -y -loop 1 -i "${input}" -c:v libx264 -t 3 -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" "${output}"`)
@@ -154,7 +156,7 @@ module.exports = {
                 } else if (targetFormat !== 'png' && targetFormat !== 'jpg') {
                     const tmp = os.tmpdir()
                     const id = Date.now()
-                    const input = path.join(tmp, `img_${id}.jpg`)
+                    const input = path.join(tmp, `img_${id}.${inputExt}`)
                     const output = path.join(tmp, `img_${id}.${targetFormat}`)
                     fs.writeFileSync(input, buffer)
                     await execAsync(`magick "${input}" "${output}"`)
@@ -178,7 +180,7 @@ module.exports = {
 
             await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
         } catch (err) {
-            console.error('Error en /img:', err.message)
+            logError('comando /img', err)
             await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
             await sock.sendMessage(from, { text: `❌ Error: ${err.message}` })
         }

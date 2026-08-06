@@ -6,7 +6,7 @@ module.exports = {
     descripcion: 'Muestra la lista de todos los comandos disponibles con su uso',
 
     ejecutar: async (ctx) => {
-        const { sock, msg, from } = ctx
+        const { sock, msg, from, logError } = ctx
 
         const extensionesDir = path.join(__dirname)
 
@@ -26,7 +26,7 @@ module.exports = {
                     })
                 }
             } catch (err) {
-                console.error(`Error cargando ${archivo}:`, err.message)
+                logError(`carga de extensión ${archivo}`, err)
             }
         }
 

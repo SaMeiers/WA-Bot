@@ -27,7 +27,7 @@ module.exports = {
     descripcion: 'Actualiza el bot desde GitHub (solo creador)',
 
     ejecutar: async (ctx) => {
-        const { sock, msg, from, isCreator } = ctx
+        const { sock, msg, from, isCreator, logError } = ctx
 
         if (!isCreator) return
 
@@ -107,7 +107,7 @@ module.exports = {
             }
 
         } catch (err) {
-            console.error('❌ Error en /update:', err.message)
+            logError('comando /update', err)
             await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
             await sock.sendMessage(from, {
                 text: `❌ *Error al actualizar:*\n\`\`\`${err.message}\`\`\``

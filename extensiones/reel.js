@@ -3,7 +3,7 @@ module.exports = {
     descripcion: 'Convierte un video a formato Reel interactivo',
     
     ejecutar: async (ctx) => {
-        const { sock, msg, from, downloadMediaMessage, logger } = ctx
+        const { sock, msg, from, downloadMediaMessage, logger, logError } = ctx
 
         const contextInfo = msg.message?.extendedTextMessage?.contextInfo
         const quoted = contextInfo?.quotedMessage
@@ -55,7 +55,7 @@ module.exports = {
             await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
         } catch (err) {
-            console.error('Error en /reel:', err.message)
+            logError('comando /reel', err)
             await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
         }
     }

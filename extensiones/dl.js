@@ -10,7 +10,7 @@ module.exports = {
     descripcion: 'Descarga de YouTube, Instagram y TikTok. Uso: /dl [mp3|mp4] [url]',
     
     ejecutar: async (ctx) => {
-        const { sock, msg, from, args } = ctx
+        const { sock, msg, from, args, logError } = ctx
 
         if (args.length < 2) {
             return await sock.sendMessage(from, { 
@@ -74,7 +74,7 @@ module.exports = {
             await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
         } catch (err) {
-            console.error('Error en /dl:', err.message)
+            logError('comando /dl', err)
             await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
             await sock.sendMessage(from, { 
                 text: `❌ *Error al descargar:*\nPosibles causas:\n1. El video es privado.\n2. Pesa más de 45MB.\n3. Instagram bloqueó la petición anónima.` 
