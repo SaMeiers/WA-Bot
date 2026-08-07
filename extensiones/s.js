@@ -76,15 +76,26 @@ module.exports = {
         const contextInfo = msg.message?.extendedTextMessage?.contextInfo
         const quoted = contextInfo?.quotedMessage
 
-        const isVideo = quoted?.videoMessage != null
-        const isImage = quoted?.imageMessage != null
+        // /s puede venir respondiendo a un mensaje (quoted) o como caption de la
+        // propia imagen/video que se está enviando (directo, sin responder a nada)
+        const isVideoQuoted = quoted?.videoMessage != null
+        const isImageQuoted = quoted?.imageMessage != null
+        const isVideoDirect = msg.message?.videoMessage != null
+        const isImageDirect = msg.message?.imageMessage != null
+
+        const isVideo = isVideoQuoted || isVideoDirect
+        const isImage = isImageQuoted || isImageDirect
 
         if (!isVideo && !isImage) {
-            return await sock.sendMessage(from, { text: `🖼️ Responde a una *foto* o *video (máx ${MAX_VIDEO_SECONDS}s)* con */s* para obtener un sticker.` }, { quoted: msg })
+            return await sock.sendMessage(from, { text: `🖼️ Manda una *foto* o *video (máx ${MAX_VIDEO_SECONDS}s)* con */s* de caption, o responde a una con */s*.` }, { quoted: msg })
         }
 
+        const mediaMsg = isVideoQuoted || isImageQuoted
+            ? (isVideoQuoted ? quoted.videoMessage : quoted.imageMessage)
+            : (isVideoDirect ? msg.message.videoMessage : msg.message.imageMessage)
+
         if (isVideo) {
-            const duracion = quoted.videoMessage.seconds
+            const duracion = mediaMsg.seconds
             if (duracion && duracion > MAX_VIDEO_SECONDS) {
                 return await sock.sendMessage(from, {
                     text: `⏱️ Ese video dura ${duracion}s y el máximo es ${MAX_VIDEO_SECONDS}s. Recórtalo y vuelve a intentar (antes se cortaba en silencio, ahora te aviso).`
@@ -95,13 +106,19 @@ module.exports = {
         try {
             await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
-            const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'
-            const quotedKey = { remoteJid: from, id: contextInfo.stanzaId, participant: contextInfo.participant || undefined, fromMe: (contextInfo.participant || from) === botJid }
+            let targetKey, targetMessage
+            if (isVideoQuoted || isImageQuoted) {
+                const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'
+                targetKey = { remoteJid: from, id: contextInfo.stanzaId, participant: contextInfo.participant || undefined, fromMe: (contextInfo.participant || from) === botJid }
+                targetMessage = quoted
+            } else {
+                targetKey = msg.key
+                targetMessage = msg.message
+            }
 
-            const mimetype = (isVideo ? quoted.videoMessage.mimetype : quoted.imageMessage.mimetype) || ''
-            const inputExt = extFromMimetype(mimetype)
+            const inputExt = extFromMimetype(mediaMsg.mimetype || '')
 
-            const buffer = await downloadMediaMessage({ key: quotedKey, message: quoted }, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage })
+            const buffer = await downloadMediaMessage({ key: targetKey, message: targetMessage }, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage })
 
             const { buffer: stickerBuf, oversized, sizeKb } = await mediaToSticker(buffer, isVideo, inputExt)
 
