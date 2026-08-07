@@ -20,6 +20,19 @@ process.on('unhandledRejection', (reason) => logError('unhandledRejection', reas
 const groupCache = new Map()
 const GROUP_CACHE_TTL = 5 * 60 * 1000
 
+const processedMsgIds = new Map()
+const DEDUP_TTL = 60 * 1000
+
+function yaProcesado(id) {
+    const now = Date.now()
+    for (const [msgId, ts] of processedMsgIds) {
+        if (now - ts > DEDUP_TTL) processedMsgIds.delete(msgId)
+    }
+    if (processedMsgIds.has(id)) return true
+    processedMsgIds.set(id, now)
+    return false
+}
+
 function cacheSet(jid, metadata) {
     groupCache.set(jid, { data: metadata, ts: Date.now() })
 }
@@ -101,6 +114,8 @@ async function startBot() {
 
         for (const msg of messages) {
             if (!msg.message) continue
+            if (msg.key.id && yaProcesado(msg.key.id)) continue
+
             const from = msg.key.remoteJid
             const fromMe = msg.key.fromMe
 
