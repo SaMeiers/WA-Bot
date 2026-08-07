@@ -26,7 +26,7 @@ const IMAGE_ATTEMPTS = [
 ]
 
 async function encodeVideoAttempt(input, output, fps, quality) {
-    await execAsync(`ffmpeg -y -i "${input}" -vcodec libwebp -vf "fps=${fps},scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black" -lossless 0 -q:v ${quality} -loop 0 -preset default -an -t ${MAX_VIDEO_SECONDS} "${output}"`)
+    await execAsync(`ffmpeg -y -i "${input}" -vcodec libwebp -vf "fps=${fps},scale=512:512:force_original_aspect_ratio=decrease,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000" -lossless 0 -q:v ${quality} -loop 0 -preset default -an -t ${MAX_VIDEO_SECONDS} "${output}"`)
 }
 
 async function encodeImageAttempt(input, output, quality) {
