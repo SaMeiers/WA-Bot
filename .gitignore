@@ -1,3 +1,5 @@
 auth_info/
 whitelist.json
+mode.json
 node_modules/
+logs/

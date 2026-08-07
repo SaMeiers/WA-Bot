@@ -1,17 +1,21 @@
-const {
-    default: makeWASocket,
+import makeWASocket, {
     useMultiFileAuthState,
     downloadMediaMessage,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    Browsers
-} = require('@whiskeysockets/baileys')
-const pino = require('pino')
-const fs = require('fs')
-const path = require('path')
-const readline = require('readline')
-const { logInfo, logDebug, logError } = require('./lib/logger')
-const { getTextContent, getMediaInfo } = require('./lib/mediaResolve')
+    Browsers,
+    makeCacheableSignalKeyStore
+} from '@whiskeysockets/baileys'
+import pino from 'pino'
+import fs from 'fs'
+import path from 'path'
+import readline from 'readline'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { logInfo, logDebug, logError } from './lib/logger.js'
+import { getTextContent, getMediaInfo } from './lib/mediaResolve.js'
+
+// en ESM no existe __dirname de forma nativa, hay que reconstruirlo
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // nivel configurable via env (LOG_LEVEL=debug para ver el tráfico interno de baileys)
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || 'error' })
@@ -27,6 +31,23 @@ const GROUP_CACHE_TTL = 5 * 60 * 1000
 // ejecutan dos veces seguidas y "parpadean" entre los dos estados.
 const processedMsgIds = new Map()
 const DEDUP_TTL = 60 * 1000
+
+// Baileys 7.x pide un callback getMessage para reintentos, votos de encuestas
+// y manejo de mensajes citados — sin esto la guía de migración avisa fallas.
+// Guardamos los mensajes recientes en memoria para poder resolverlo.
+const messageStore = new Map()
+const MESSAGE_STORE_TTL = 10 * 60 * 1000
+const MESSAGE_STORE_MAX = 500
+
+function storeMessage(msg) {
+    if (!msg.key?.id) return
+    const key = `${msg.key.remoteJid}:${msg.key.id}`
+    messageStore.set(key, { message: msg.message, ts: Date.now() })
+    if (messageStore.size > MESSAGE_STORE_MAX) {
+        const oldestKey = messageStore.keys().next().value
+        messageStore.delete(oldestKey)
+    }
+}
 
 function yaProcesado(id) {
     const now = Date.now()
@@ -63,11 +84,18 @@ async function startBot() {
 
     const sock = makeWASocket({
         version,
-        auth: state,
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, logger)
+        },
         logger,
         markOnlineOnConnect: false,
         browser: Browsers.ubuntu('Chrome'),
-        cachedGroupMetadata: async (jid) => cacheGet(jid)
+        cachedGroupMetadata: async (jid) => cacheGet(jid),
+        getMessage: async (key) => {
+            const entry = messageStore.get(`${key.remoteJid}:${key.id}`)
+            return entry?.message || undefined
+        }
     })
 
     sock.ev.on('creds.update', saveCreds)
@@ -115,10 +143,14 @@ async function startBot() {
     })
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        logDebug(`upsert — type: ${type}, mensajes: ${messages.length}, ids: ${messages.map(m => m.key?.id).join(', ')}`)
+
         for (const raw of messages) {
+            storeMessage(raw)
+
             const info = getMediaInfo(raw.message)
             if (info) {
-                logDebug(`upsert type: ${type} | media (${info.type}) — caption: ${JSON.stringify(info.caption)} | keys nivel superior: ${raw.message ? Object.keys(raw.message).join(', ') : 'null'}`)
+                logDebug(`  └─ media (${info.type}) — caption: ${JSON.stringify(info.caption)} | keys nivel superior: ${raw.message ? Object.keys(raw.message).join(', ') : 'null'}`)
             }
         }
 
@@ -165,8 +197,11 @@ async function startBot() {
             }
 
             try {
-                delete require.cache[require.resolve(cmdPath)]
-                const extension = require(cmdPath)
+                // en ESM no existe require.cache — se fuerza releer el archivo
+                // agregando un query string único, así el hot-reload sigue andando
+                const moduleUrl = `${pathToFileURL(cmdPath).href}?update=${Date.now()}`
+                const extensionModule = await import(moduleUrl)
+                const extension = extensionModule.default
                 await extension.ejecutar({ sock, msg, from, args, downloadMediaMessage, logger, logError, sender, isCreator, groupCache: { get: cacheGet, set: cacheSet } })
             } catch (err) {
                 logError(`comando /${cmdName} (${sender})`, err)

@@ -1,6 +1,8 @@
 # WA-Bot Personal
 
-Bot personal de WhatsApp construido con [Baileys](https://github.com/WhiskeySockets/Baileys) (línea estable 6.7.x, oficial). Sistema modular basado en extensiones, vinculación por código de pairing (sin QR), whitelist de usuarios y soporte para stickers y conversión de medios.
+Bot personal de WhatsApp construido con [Baileys](https://github.com/WhiskeySockets/Baileys) 7.0.0-rc14 (oficial, ESM). Sistema modular basado en extensiones, vinculación por código de pairing (sin QR), whitelist de usuarios y soporte para stickers y conversión de medios.
+
+> ⚠️ La línea 6.7.x quedó descontinuada por los maintainers (el propio changelog de la 7.x incluye fixes de `fromMe` y de estabilidad de socket) — por eso este proyecto corre sobre la 7.x aunque todavía sea release candidate.
 
 > **Proyecto experimental / personal.** No está pensado para uso masivo ni como servicio público.
 
@@ -20,7 +22,7 @@ Bot personal de WhatsApp construido con [Baileys](https://github.com/WhiskeySock
 
 ## Requisitos
 
-- [Node.js](https://nodejs.org/) v18 o superior
+- [Node.js](https://nodejs.org/) **v20 o superior** (obligatorio — Baileys 7.x no arranca con versiones más viejas)
 - [ffmpeg](https://ffmpeg.org/) (en el PATH del sistema)
 - [ImageMagick](https://imagemagick.org/) v7+ — comando `magick` (en el PATH del sistema)
 
@@ -35,7 +37,7 @@ Todas tienen un valor por defecto razonable; solo hace falta definirlas si quer�
 | `STICKER_PACK` | `WA-Bot Personal` | Nombre de pack que se ve en los stickers |
 | `STICKER_AUTHOR` | `SaMeiers` | Autor que se ve en los stickers |
 | `STICKER_MAX_SECONDS` | `8` | Duración máxima de video aceptada para `/s` |
-| `STICKER_ANIMATED_MAX_BYTES` | `9000000` (9MB) | Límite de peso para stickers animados antes de reintentar con menor calidad |
+| `STICKER_ANIMATED_MAX_BYTES` | `1000000` (1MB) | Límite de peso para stickers animados antes de reintentar con menor calidad |
 | `STICKER_STATIC_MAX_BYTES` | `300000` (300KB) | Límite de peso para stickers estáticos |
 | `BAILEYS_LOG_LEVEL` | `error` | Nivel de log interno de Baileys (`debug` para ver todo el tráfico) |
 
