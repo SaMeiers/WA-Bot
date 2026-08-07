@@ -6,6 +6,7 @@ const os = require('os')
 const execAsync = promisify(exec)
 const { addExif } = require('../lib/stickerExif')
 const { extFromMimetype } = require('../lib/mediaUtils')
+const { getMediaInfo } = require('../lib/mediaResolve')
 
 const ANIMATED_MAX_BYTES = parseInt(process.env.STICKER_ANIMATED_MAX_BYTES || '9000000', 10)
 const STATIC_MAX_BYTES = parseInt(process.env.STICKER_STATIC_MAX_BYTES || '300000', 10)
@@ -77,22 +78,19 @@ module.exports = {
         const quoted = contextInfo?.quotedMessage
 
         // /s puede venir respondiendo a un mensaje (quoted) o como caption de la
-        // propia imagen/video que se está enviando (directo, sin responder a nada)
-        const isVideoQuoted = quoted?.videoMessage != null
-        const isImageQuoted = quoted?.imageMessage != null
-        const isVideoDirect = msg.message?.videoMessage != null
-        const isImageDirect = msg.message?.imageMessage != null
+        // propia imagen/video que se está enviando (directo, sin responder a nada);
+        // en cualquiera de los dos casos puede venir como view-once o como
+        // "documento" (WhatsApp manda las fotos en calidad HD así)
+        const infoQuoted = quoted ? getMediaInfo(quoted) : null
+        const infoDirect = getMediaInfo(msg.message)
+        const info = infoQuoted || infoDirect
 
-        const isVideo = isVideoQuoted || isVideoDirect
-        const isImage = isImageQuoted || isImageDirect
-
-        if (!isVideo && !isImage) {
+        if (!info) {
             return await sock.sendMessage(from, { text: `🖼️ Manda una *foto* o *video (máx ${MAX_VIDEO_SECONDS}s)* con */s* de caption, o responde a una con */s*.` }, { quoted: msg })
         }
 
-        const mediaMsg = isVideoQuoted || isImageQuoted
-            ? (isVideoQuoted ? quoted.videoMessage : quoted.imageMessage)
-            : (isVideoDirect ? msg.message.videoMessage : msg.message.imageMessage)
+        const isVideo = info.type === 'video'
+        const mediaMsg = info.media
 
         if (isVideo) {
             const duracion = mediaMsg.seconds
@@ -107,7 +105,7 @@ module.exports = {
             await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
             let targetKey, targetMessage
-            if (isVideoQuoted || isImageQuoted) {
+            if (infoQuoted) {
                 const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net'
                 targetKey = { remoteJid: from, id: contextInfo.stanzaId, participant: contextInfo.participant || undefined, fromMe: (contextInfo.participant || from) === botJid }
                 targetMessage = quoted
