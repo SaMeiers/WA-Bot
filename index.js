@@ -12,6 +12,7 @@ const path = require('path')
 const readline = require('readline')
 const { logInfo, logError } = require('./lib/logger')
 
+// nivel configurable via env (LOG_LEVEL=debug para ver el tráfico interno de baileys)
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || 'error' })
 
 process.on('uncaughtException', (err) => logError('uncaughtException', err))
@@ -20,6 +21,9 @@ process.on('unhandledRejection', (reason) => logError('unhandledRejection', reas
 const groupCache = new Map()
 const GROUP_CACHE_TTL = 5 * 60 * 1000
 
+// WhatsApp a veces reentrega el mismo mensaje en messages.upsert (reconexiones,
+// reintentos, multi-dispositivo). Sin esto, comandos tipo toggle (/allow) se
+// ejecutan dos veces seguidas y "parpadean" entre los dos estados.
 const processedMsgIds = new Map()
 const DEDUP_TTL = 60 * 1000
 
@@ -119,7 +123,13 @@ async function startBot() {
             const from = msg.key.remoteJid
             const fromMe = msg.key.fromMe
 
-            const rawText = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || '').trim()
+            const rawText = (
+                msg.message?.conversation ||
+                msg.message?.extendedTextMessage?.text ||
+                msg.message?.imageMessage?.caption ||
+                msg.message?.videoMessage?.caption ||
+                ''
+            ).trim()
             if (!rawText.startsWith('/')) continue
 
             const args = rawText.slice(1).trim().split(/ +/)
