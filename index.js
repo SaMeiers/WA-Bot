@@ -11,6 +11,7 @@ const fs = require('fs')
 const path = require('path')
 const readline = require('readline')
 const { logInfo, logDebug, logError } = require('./lib/logger')
+const { getTextContent, getMediaInfo } = require('./lib/mediaResolve')
 
 // nivel configurable via env (LOG_LEVEL=debug para ver el tráfico interno de baileys)
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || 'error' })
@@ -115,8 +116,9 @@ async function startBot() {
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         for (const raw of messages) {
-            if (raw.message?.imageMessage || raw.message?.videoMessage) {
-                logDebug(`upsert type: ${type} | media detectada — keys: ${Object.keys(raw.message).join(', ')} | caption imagen: ${JSON.stringify(raw.message.imageMessage?.caption)} | caption video: ${JSON.stringify(raw.message.videoMessage?.caption)}`)
+            const info = getMediaInfo(raw.message)
+            if (info) {
+                logDebug(`upsert type: ${type} | media (${info.type}) — caption: ${JSON.stringify(info.caption)} | keys nivel superior: ${raw.message ? Object.keys(raw.message).join(', ') : 'null'}`)
             }
         }
 
@@ -128,13 +130,7 @@ async function startBot() {
             const from = msg.key.remoteJid
             const fromMe = msg.key.fromMe
 
-            const rawText = (
-                msg.message?.conversation ||
-                msg.message?.extendedTextMessage?.text ||
-                msg.message?.imageMessage?.caption ||
-                msg.message?.videoMessage?.caption ||
-                ''
-            ).trim()
+            const rawText = getTextContent(msg.message).trim()
 
             if (!rawText.startsWith('/')) continue
 
