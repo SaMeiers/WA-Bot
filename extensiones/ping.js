@@ -1,4 +1,4 @@
-module.exports = {
+export default {
     nombre: 'ping',
     descripcion: 'Verifica la latencia del bot',
     

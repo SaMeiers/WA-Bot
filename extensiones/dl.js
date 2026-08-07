@@ -1,11 +1,12 @@
-const { exec } = require('child_process')
-const { promisify } = require('util')
-const fs = require('fs')
-const path = require('path')
-const os = require('os')
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+
 const execAsync = promisify(exec)
 
-module.exports = {
+export default {
     nombre: 'dl',
     descripcion: 'Descarga de YouTube, Instagram y TikTok. Uso: /dl [mp3|mp4] [url]',
     

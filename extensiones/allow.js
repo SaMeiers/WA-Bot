@@ -1,7 +1,10 @@
-const fs = require('fs')
-const path = require('path')
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-module.exports = {
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+export default {
     nombre: 'allow',
     descripcion: 'Da o quita permisos para usar el bot. Uso: /allow (responde a un mensaje) | /allow all (modo libre) | /allow none (revocar todos)',
 

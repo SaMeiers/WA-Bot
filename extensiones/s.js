@@ -1,14 +1,15 @@
-const { exec } = require('child_process')
-const { promisify } = require('util')
-const fs = require('fs')
-const path = require('path')
-const os = require('os')
-const execAsync = promisify(exec)
-const { addExif } = require('../lib/stickerExif')
-const { extFromMimetype } = require('../lib/mediaUtils')
-const { getMediaInfo } = require('../lib/mediaResolve')
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+import { addExif } from '../lib/stickerExif.js'
+import { extFromMimetype } from '../lib/mediaUtils.js'
+import { getMediaInfo } from '../lib/mediaResolve.js'
 
-const ANIMATED_MAX_BYTES = parseInt(process.env.STICKER_ANIMATED_MAX_BYTES || '9000000', 10)
+const execAsync = promisify(exec)
+
+const ANIMATED_MAX_BYTES = parseInt(process.env.STICKER_ANIMATED_MAX_BYTES || '1000000', 10)
 const STATIC_MAX_BYTES = parseInt(process.env.STICKER_STATIC_MAX_BYTES || '300000', 10)
 const MAX_VIDEO_SECONDS = parseInt(process.env.STICKER_MAX_SECONDS || '8', 10)
 
@@ -67,7 +68,7 @@ async function mediaToSticker(buffer, isVideo, inputExt) {
     }
 }
 
-module.exports = {
+export default {
     nombre: 's',
     descripcion: `Convierte imagen o video (máx ${MAX_VIDEO_SECONDS}s) a sticker, con nombre de pack/autor y tamaño optimizado`,
 

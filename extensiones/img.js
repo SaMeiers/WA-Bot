@@ -1,10 +1,11 @@
-const { exec } = require('child_process')
-const { promisify } = require('util')
-const fs = require('fs')
-const path = require('path')
-const os = require('os')
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+import { extFromMimetype } from '../lib/mediaUtils.js'
+
 const execAsync = promisify(exec)
-const { extFromMimetype } = require('../lib/mediaUtils')
 
 async function stickerToMedia(buffer, targetFormat) {
     const tmp = os.tmpdir()
@@ -69,7 +70,7 @@ async function stickerToMedia(buffer, targetFormat) {
     }
 }
 
-module.exports = {
+export default {
     nombre: 'img',
     descripcion: 'Convierte sticker o imagen view-once a formato específico. Uso: /img [png|jpg|mp4|gif|webp]',
 

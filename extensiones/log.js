@@ -1,10 +1,13 @@
-const fs = require('fs')
-const path = require('path')
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const DEBUG_FILE = path.join(__dirname, '..', 'logs', 'debug.log')
 const ERROR_FILE = path.join(__dirname, '..', 'logs', 'errors.log')
 
-module.exports = {
+export default {
     nombre: 'log',
     descripcion: '(Solo creador, temporal) Envía el archivo de debug/errores para diagnosticar bugs',
 
@@ -36,4 +39,3 @@ module.exports = {
         }
     }
 }
- 

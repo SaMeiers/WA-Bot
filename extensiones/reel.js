@@ -1,4 +1,4 @@
-module.exports = {
+export default {
     nombre: 'reel',
     descripcion: 'Convierte un video a formato Reel interactivo',
     

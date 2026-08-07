@@ -1,5 +1,8 @@
-const fs = require('fs')
-const path = require('path')
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const rankPath = path.join(__dirname, '..', 'rank.json')
 const partidasPath = path.join(__dirname, '..', 'partidas.json')
@@ -74,7 +77,7 @@ function cerrarPartida(from) {
     guardarPartidas(partidas)
 }
 
-module.exports = {
+export default {
     nombre: 'ruleta',
     descripcion: 'Mortal minijuego de Ruleta Rusa. Uso: /ruleta [crear|join|leave|start|kick|dispararme|disparar|jugadores|rank]',
 

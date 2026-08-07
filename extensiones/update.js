@@ -1,9 +1,11 @@
-const { exec } = require('child_process')
-const { promisify } = require('util')
-const path = require('path')
-const fs = require('fs')
-const execAsync = promisify(exec)
+import { exec, execSync } from 'child_process'
+import { promisify } from 'util'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 
+const execAsync = promisify(exec)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
 const GIT_DIR = path.join(ROOT, '.git')
 
@@ -17,12 +19,11 @@ const FILE_STATUS = {
 
 function clearGitLocks() {
     try {
-        const { execSync } = require('child_process')
         execSync(`find "${GIT_DIR}" -name "*.lock" -delete`)
     } catch (_) {}
 }
 
-module.exports = {
+export default {
     nombre: 'update',
     descripcion: 'Actualiza el bot desde GitHub (solo creador)',
 
