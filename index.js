@@ -114,6 +114,12 @@ async function startBot() {
     })
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        for (const raw of messages) {
+            if (raw.message?.imageMessage || raw.message?.videoMessage) {
+                logDebug(`upsert type: ${type} | media detectada — keys: ${Object.keys(raw.message).join(', ')} | caption imagen: ${JSON.stringify(raw.message.imageMessage?.caption)} | caption video: ${JSON.stringify(raw.message.videoMessage?.caption)}`)
+            }
+        }
+
         if (type !== 'notify') return
 
         for (const msg of messages) {
@@ -129,10 +135,6 @@ async function startBot() {
                 msg.message?.videoMessage?.caption ||
                 ''
             ).trim()
-
-            if (msg.message.imageMessage || msg.message.videoMessage) {
-                logDebug(`media — keys: ${Object.keys(msg.message).join(', ')} | caption imagen: ${JSON.stringify(msg.message.imageMessage?.caption)} | caption video: ${JSON.stringify(msg.message.videoMessage?.caption)} | rawText resuelto: ${JSON.stringify(rawText)}`)
-            }
 
             if (!rawText.startsWith('/')) continue
 
