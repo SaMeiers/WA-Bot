@@ -10,7 +10,7 @@ const pino = require('pino')
 const fs = require('fs')
 const path = require('path')
 const readline = require('readline')
-const { logInfo, logError } = require('./lib/logger')
+const { logInfo, logDebug, logError } = require('./lib/logger')
 
 // nivel configurable via env (LOG_LEVEL=debug para ver el tráfico interno de baileys)
 const logger = pino({ level: process.env.BAILEYS_LOG_LEVEL || 'error' })
@@ -21,6 +21,9 @@ process.on('unhandledRejection', (reason) => logError('unhandledRejection', reas
 const groupCache = new Map()
 const GROUP_CACHE_TTL = 5 * 60 * 1000
 
+// WhatsApp a veces reentrega el mismo mensaje en messages.upsert (reconexiones,
+// reintentos, multi-dispositivo). Sin esto, comandos tipo toggle (/allow) se
+// ejecutan dos veces seguidas y "parpadean" entre los dos estados.
 const processedMsgIds = new Map()
 const DEDUP_TTL = 60 * 1000
 
@@ -127,8 +130,8 @@ async function startBot() {
                 ''
             ).trim()
 
-            if (process.env.DEBUG_COMMANDS === '1' && !rawText && (msg.message.imageMessage || msg.message.videoMessage)) {
-                logInfo(`[debug] mensaje con media sin texto reconocido — keys: ${Object.keys(msg.message).join(', ')} | caption imagen: ${JSON.stringify(msg.message.imageMessage?.caption)} | caption video: ${JSON.stringify(msg.message.videoMessage?.caption)}`)
+            if (msg.message.imageMessage || msg.message.videoMessage) {
+                logDebug(`media — keys: ${Object.keys(msg.message).join(', ')} | caption imagen: ${JSON.stringify(msg.message.imageMessage?.caption)} | caption video: ${JSON.stringify(msg.message.videoMessage?.caption)} | rawText resuelto: ${JSON.stringify(rawText)}`)
             }
 
             if (!rawText.startsWith('/')) continue
