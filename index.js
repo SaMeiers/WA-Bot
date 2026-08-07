@@ -21,9 +21,6 @@ process.on('unhandledRejection', (reason) => logError('unhandledRejection', reas
 const groupCache = new Map()
 const GROUP_CACHE_TTL = 5 * 60 * 1000
 
-// WhatsApp a veces reentrega el mismo mensaje en messages.upsert (reconexiones,
-// reintentos, multi-dispositivo). Sin esto, comandos tipo toggle (/allow) se
-// ejecutan dos veces seguidas y "parpadean" entre los dos estados.
 const processedMsgIds = new Map()
 const DEDUP_TTL = 60 * 1000
 
@@ -118,7 +115,6 @@ async function startBot() {
 
         for (const msg of messages) {
             if (!msg.message) continue
-            if (msg.key.id && yaProcesado(msg.key.id)) continue
 
             const from = msg.key.remoteJid
             const fromMe = msg.key.fromMe
@@ -130,6 +126,11 @@ async function startBot() {
                 msg.message?.videoMessage?.caption ||
                 ''
             ).trim()
+
+            if (process.env.DEBUG_COMMANDS === '1' && !rawText && (msg.message.imageMessage || msg.message.videoMessage)) {
+                logInfo(`[debug] mensaje con media sin texto reconocido — keys: ${Object.keys(msg.message).join(', ')} | caption imagen: ${JSON.stringify(msg.message.imageMessage?.caption)} | caption video: ${JSON.stringify(msg.message.videoMessage?.caption)}`)
+            }
+
             if (!rawText.startsWith('/')) continue
 
             const args = rawText.slice(1).trim().split(/ +/)
@@ -137,6 +138,11 @@ async function startBot() {
 
             const cmdPath = path.join(__dirname, 'extensiones', `${cmdName}.js`)
             if (!fs.existsSync(cmdPath)) continue
+
+            // recién acá se considera "un comando real" — marcar antes de esto
+            // corre el riesgo de tragarse la entrega definitiva de un mensaje
+            // (ej. imagen cuyo caption llega completo en un evento posterior)
+            if (msg.key.id && yaProcesado(msg.key.id)) continue
 
             const whitelistPath = path.join(__dirname, 'whitelist.json')
             let whitelist = []
